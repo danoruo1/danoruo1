@@ -1,10 +1,6 @@
-/* UML document for starter code:
-    https://lucid.app/lucidchart/285ca85b-58f3-40e4-a98a-4d54bd2fc03d/view?page=0_0#
+/* 
 
-
-App.java
 For use in the Final project for COSC 236.
-Based on starter code first developed by Prof. Dastyni Loksa
 
 This is the driver class of the project. It is in charge of the following:
 
