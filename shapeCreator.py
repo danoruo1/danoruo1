@@ -2,6 +2,8 @@ import time
 start = 0
 pi = 3.141592653589793238
 
+# This is a project I made during my senior year of high school. Back then I created a program that draws the  listed shapes in the array except for circle,
+# using formatting and math to determine where to draw the lines and the total area.
 def Draw(shape):
     if shape == "Square":
         length = input("Length of Square? ")
