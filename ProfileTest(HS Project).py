@@ -1,4 +1,7 @@
 import time
+
+# Made This Project During High School Senior Year
+# A Profile System That Takes In Your Name, Birthday, and any additional information you want to add to it.
 def numtobm(number):
     months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     selected_month = months[number-1]
