@@ -1,0 +1,57 @@
+	local function saveProgressAlternate(retry)
+		local done = false
+		local retry = 0
+
+		if retry <= 3 then
+			retry += 1
+			myTable["Cash"] = Cash.Value
+			myTable["Coins"] = Coins.Value
+			myTable["Level"] = Level.Value
+			myTable["Exp"] = Exp.Value
+			myTable["Talents"] = Talents.Value
+			myTable["TempusStats"]["MasteryLevel"] = TempusLevel.Value
+			myTable["TempusStats"]["MasteryExp"] = TempusExp.Value
+			myTable["TempusStats"]["Perk"] = Perk.Value
+			local success, error = pcall(function()
+				if done == false then
+					done = true
+					localdataStore:SetAsync(player.UserId.."'s Stats", myTable) -- Save This Last
+					print("Successfully Saved ".. player.Name.."'s Regular Stats")
+				end	
+			end)
+
+			if not success then
+				print("Error making DataStore request:", error)
+				wait(2^retry) -- You can adjust the wait time based on your rate limit
+				saveProgressAlternate(retry)			
+			end
+		end
+	end
+	
+	local function saveProgress()
+		myTable["Cash"] = Cash.Value
+		myTable["Coins"] = Coins.Value
+		myTable["Level"] = Level.Value
+		myTable["Exp"] = Exp.Value
+		myTable["Talents"] = Talents.Value
+		myTable["TempusStats"]["MasteryLevel"] = TempusLevel.Value
+		myTable["TempusStats"]["MasteryExp"] = TempusExp.Value
+		myTable["TempusStats"]["Perk"] = Perk.Value
+		local done = false
+		local success, error = pcall(function()
+			if done == false then
+				done = true
+				localdataStore:SetAsync(player.UserId.."'s Stats", myTable) -- Save This Last
+				print("Successfully Saved ".. player.Name.."'s Regular Stats")
+			end	
+		end)
+
+		if not success then
+			print("Error making DataStore request:", error)
+			wait(2) -- You can adjust the wait time based on your rate limit
+			saveProgressAlternate(0)			
+		end
+	end
+	
+	game.Players.PlayerRemoving:Connect(saveProgress)
+	game:BindToClose(saveProgress)
