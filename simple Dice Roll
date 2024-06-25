@@ -1,0 +1,40 @@
+from tkinter import *
+import random
+# Developed This In an Hour To Prepare For My Full Stack Project For The Year
+def click():
+    num = random.randint(1,9)
+    print(num)
+    copyGui = Tk()
+    copyGui.geometry("250x250")
+    copyGui.title = "Result"
+    copyGui.config(background="#000000")
+    text = Label(copyGui, text="The Number You \nGot Is " + str(num), font=('Arial', 20, 'bold'),fg="red")
+    text.config(background="#000000")
+    text.pack()
+    copyGui.after(3000,lambda:copyGui.destroy())
+
+
+currentGui = Tk()
+currentGui.geometry("420x420")
+currentGui.title = "Dice Roll"
+
+icon = PhotoImage(file='diceRoll.png')
+currentGui.config(background="#3443eb")
+currentGui.iconphoto(True,icon) #Sets The Image Icon
+
+
+title = Label(currentGui, text="Welcome To The Dice Roller",font=('Arial',20,'bold'))
+title.config(background="#3443eb")
+title.pack()
+
+dicePhoto = PhotoImage(file='diceRoll.png')
+resized_dicePhoto = dicePhoto.subsample(5, 5)
+
+diceImage = Label(currentGui,image=resized_dicePhoto)
+diceImage.config(background="#3443eb")
+diceImage.pack()
+
+button = Button(currentGui,text="Click For A Random Number",command=click)
+button.pack()
+
+currentGui.mainloop()
