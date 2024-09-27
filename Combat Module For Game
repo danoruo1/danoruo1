@@ -1,0 +1,1141 @@
+local rs = game:GetService("ReplicatedStorage")
+local enemyModule = game:GetService("ServerScriptService"):WaitForChild("MobRewards").enemyModule
+local BattleEffects = game.ReplicatedStorage:WaitForChild("BattleEffect")
+local TweenService = game:GetService("TweenService")
+function unequipTools(character)
+	if character:FindFirstChild("NPC") then return end
+	if game.Players:FindFirstChild(character.Name) == nil then return end
+	for _, tool in pairs(character:GetChildren()) do
+		if tool:IsA("Tool") then
+			tool.Parent = game.Players:FindFirstChild(character.Name).Backpack
+		end
+	end
+end
+
+local function lowLevel(char)
+	if char.Torso:FindFirstChild("lwlvl") then return end
+	local LowLVL = BattleEffects.LowLVL.Attachment:Clone()
+	LowLVL.Name = "lwlvl"
+	LowLVL.Parent = char.Torso
+	game.Debris:AddItem(LowLVL,0.5)
+end
+
+local CombatDictionary = {
+	["NoComboCombat"] = {
+		["Delay"] = 2,
+		["Name"] = "NoComboCombat",
+		["Combo"] = false,
+		["ComboLength"] = 2,
+		["Damage"] = 5
+	},
+	
+	["Normal"] = {
+		["Delay"] = 2,
+		["Name"] = "Normal",
+		["Combo"] = true,
+ 		["ComboLength"] = 3,
+		["Damage"] = 5,
+		["Ragdoll"] = true,
+		
+	},
+	
+	["Ninja"] = {
+		["Delay"] = 1.55,
+		["Name"] = "Ninja",
+		["Accessory"] = true,
+		["Combo"] = true,
+		["ComboLength"] = 4,
+		["Damage"] = 12
+
+	},
+	
+	["FlameCombat"] = {
+		["Delay"] = 1.5,
+		["Name"] = "FlameCombat",
+		["Emitter"] = true,
+		["Combo"] = true,
+		["ComboLength"] = 3,
+		["Damage"] = 15
+
+	},
+	
+	["ShardCombat"] = {
+		["Delay"] = 1.65,
+		["Name"] = "ShardCombat",
+		["Emitter"] = true,
+		["Combo"] = true,
+		["ComboLength"] = 3,
+		["Damage"] = 22
+
+	}
+}
+
+-------------------- [Damage/KnockBack/Etc] -------------------------
+RagdollIgnoreGuardBreak = function(character)
+	if character:FindFirstChild("Ragdolled") then return end
+	character.ComboStage.Value = 1
+	local check = Instance.new("BoolValue",character)
+	check.Name = "Ragdolled"
+
+	for i, joint in pairs(character:GetDescendants()) do
+		if joint:IsA("Motor6D") then
+			local socket = Instance.new("BallSocketConstraint")
+			local a0 = Instance.new("Attachment")
+			local a1 = Instance.new("Attachment")
+			a0.Parent = joint.Part0
+			a1.Parent = joint.Part1
+			socket.Parent = joint.Parent
+			socket.Attachment0 = a0
+			socket.Attachment1 = a1
+			a0.CFrame = joint.C0
+			a1.CFrame = joint.C1
+			socket.LimitsEnabled = true
+			socket.TwistLimitsEnabled = true
+			joint.Enabled = false
+		end
+	end
+	character.Humanoid:ChangeState(Enum.HumanoidStateType.PlatformStanding)
+	character.Humanoid.WalkSpeed = 0
+	character.Humanoid.JumpPower = 0
+	character.Humanoid.PlatformStand = true
+	character.Humanoid.AutoRotate = false
+	character.HumanoidRootPart.CanCollide = false
+	unequipTools(character)
+	wait(3)
+	EndRagdoll(character)
+	character.HumanoidRootPart.CanCollide = true
+end
+
+StartRagdoll = function(character)
+	if character == nil then return end
+	if character:FindFirstChild("Ragdolled") then return end
+	if character:FindFirstChild("Blocking") then return end
+	character.ComboStage.Value = 1
+	local check = Instance.new("BoolValue",character)
+	check.Name = "Ragdolled"
+	local hum = character:FindFirstChild("Humanoid")
+	if hum.Health <= 0 then return end
+	
+	for i, joint in pairs(character:GetDescendants()) do
+		if joint:IsA("Motor6D") then
+			local socket = Instance.new("BallSocketConstraint")
+			local a0 = Instance.new("Attachment")
+			local a1 = Instance.new("Attachment")
+			a0.Parent = joint.Part0
+			a1.Parent = joint.Part1
+			socket.Parent = joint.Parent
+			socket.Attachment0 = a0
+			socket.Attachment1 = a1
+			a0.CFrame = joint.C0
+			a1.CFrame = joint.C1
+			socket.LimitsEnabled = true
+			socket.TwistLimitsEnabled = true
+			joint.Enabled = false
+		end
+	end
+	character.Humanoid:ChangeState(Enum.HumanoidStateType.PlatformStanding)
+	character.Humanoid.WalkSpeed = 0
+	character.Humanoid.JumpPower = 0
+	character.Humanoid.PlatformStand = true
+	character.Humanoid.AutoRotate = false
+	unequipTools(character)
+	
+	spawn(function()
+		if character["HumanoidRootPart"] ~= nil then
+			character.HumanoidRootPart.CanCollide = false
+		end
+	end)
+	wait(3)
+	EndRagdoll(character)	
+end
+
+EndRagdoll = function(character)
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local hum = character:FindFirstChild("Humanoid")
+	local module = require(game.ServerScriptService.AlienPowers.mobilityMoves)
+	
+	if hum.Health <= 0 then return end
+	if character:FindFirstChild("Ragdolled") then character.Ragdolled:Destroy() end
+	hum.PlatformStand = false
+
+	for i, joint in pairs(character:GetDescendants()) do
+		if joint:IsA("BallSocketConstraint") then
+			joint:Destroy()
+		end
+
+		if joint:IsA("Motor6D") then
+			joint.Enabled = true
+		end
+	end
+
+	spawn(function()
+		if character["HumanoidRootPart"] ~= nil then
+			character.HumanoidRootPart.CanCollide = true
+		end
+	end)
+	if character:FindFirstChild("NPC") then
+		character.Humanoid.WalkSpeed = 16
+	else
+		local plrModule = require(character.damageTable)
+		hum.WalkSpeed = plrModule.getWalkSpeed()
+	end
+	hum.JumpPower = 50
+	hum.AutoRotate = true
+	hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+end
+
+
+insertPlayer = function(enemy,player,damage)
+	if player:FindFirstChild("NPC") then return end
+	if enemy and enemy:FindFirstChild("damageTable") ~= nil then
+		local dataTable = require(enemy.damageTable)
+		if dataTable[player.Name] == nil then
+			dataTable[player.Name] = damage
+		else
+			dataTable[player.Name] += damage
+		end
+	end
+end
+
+
+function CombatDictionary.damage(hit, enemyHumanoid, highest, Damage, Character, Stage, AlienDamageBoost, IgnoreBlocking) -- For powers
+	if hit.Parent == nil then return end
+	if hit.Parent:FindFirstChild("Intangible") then return end
+	local Attributes = Character.Attributes
+	local enemyattributes = hit.Parent:FindFirstChild("Attributes")
+	local GuardBreak = BattleEffects.GuardBreak.Attachment:Clone()
+	local NormalHit = BattleEffects.HitEffect.Attachment:Clone()
+	local NormalBlock = BattleEffects.NormalBlock.Attachment:Clone()
+	local PerfectBlock = BattleEffects.PerfectBlock.Attachment:Clone()
+	local PBSound = PerfectBlock.Sound:Clone()
+	local NBSound = NormalBlock.Sound:Clone()
+	local GBSound = GuardBreak.Sound:Clone()
+	
+	if hit.Parent:FindFirstChild("NPC") then
+		if hit.Parent:FindFirstChild("damageTable") and hit.Parent:FindFirstChild("Attack") then
+			local dataTable = require(hit.Parent.damageTable)
+			dataTable.changeTarget(Character)
+		end		
+	end
+	if IgnoreBlocking == nil then --If it doesnt ignore blocking
+		if hit.Parent:FindFirstChild("Blocking") ~= nil then -- If blocking
+			if Stage ~= "HeavyHit" then -- If it is in the heavy hit stage
+				local Block = hit.Parent:FindFirstChild("Blocking")
+				if Block.Value ~= "Perfect" then
+					NBSound.Parent = Character
+					spawn(function()
+						NBSound:Play()
+						if Stage == "Finisher" then
+							EnemyAnimationFinisher(enemyHumanoid)
+						else
+							EnemyAnimation(enemyHumanoid)
+						end
+
+					end)
+					local basedamage = Damage*highest
+					local enemydefense = enemyattributes.Defense.Value*2
+					local newdamge = Attributes.Strength.Value*2
+					local totalDamage = ((basedamage-enemydefense)+newdamge)/2
+					local weakdmg = math.random(1,5)
+					totalDamage = weakdmg/2
+					totalDamage = math.max(totalDamage,weakdmg)
+					insertPlayer(hit.Parent,Character,totalDamage)
+					enemyHumanoid:TakeDamage(totalDamage)
+					noRegen(hit,Character)
+					NormalBlock.CombatGui.CombatText.Text = "- "..totalDamage
+					NormalBlock.Parent = hit.Parent.Torso
+					game.Debris:AddItem(NormalBlock,0.5)
+					game.Debris:AddItem(NBSound,1.71)
+					spawn(function()
+						if hit.Parent:FindFirstChild("Stun") == nil then
+							local Stun = Instance.new("BoolValue", hit.Parent)
+							Stun.Name = "Stun"
+							game.Debris:AddItem(Stun, .5)
+						end
+
+					end)
+
+				else
+					PBSound.Parent = Character
+					local hum = Character.Humanoid
+					spawn(function()
+						PBSound:Play()
+						local StunAnim = script.KnockBack
+						StunAnim.AnimationId = "rbxassetid://11540562516"
+						hum:LoadAnimation(StunAnim):Play()
+						wait(2.3)
+						hum:LoadAnimation(StunAnim):Stop()
+					end)
+					local Oldws = Character.Humanoid.WalkSpeed + 0 
+					PerfectBlock.Parent = hit.Parent.Torso
+					game.Debris:AddItem(PerfectBlock,1)
+					if Character.Humanoid.Parent:FindFirstChild("Stun") == nil and Character.Humanoid.WalkSpeed > 0 then
+						Character.Humanoid.WalkSpeed = 0 
+						local Stun = Instance.new("BoolValue", Character)
+						Stun.Name = "Stun"
+						game.Debris:AddItem(Stun, 3)
+						game.Debris:AddItem(PBSound,3.2)
+						spawn(function()
+							wait(2)
+							Character.Humanoid.WalkSpeed = Oldws
+						end)
+					end
+				end
+			else
+				GuardBreak.CombatGui.CombatText.Text = "GuardBreak!"
+				GBSound.Parent = Character
+				local BlockAnim = Instance.new("Animation")
+				BlockAnim.Parent = enemyHumanoid
+				BlockAnim.AnimationId = "rbxassetid://8375606231"
+				enemyHumanoid:LoadAnimation(BlockAnim):Stop()
+				spawn(function()
+					GBSound:Play()
+					RagdollIgnoreGuardBreak(hit.Parent)
+					local StunAnim = script.KnockBack
+					StunAnim.AnimationId = "rbxassetid://11540562516"
+					enemyHumanoid:LoadAnimation(StunAnim):Play()
+					wait(2.3)
+					enemyHumanoid:LoadAnimation(StunAnim):Stop()
+				end)
+				local basedamage = Damage*highest
+				local enemydefense = enemyattributes.Defense.Value*2
+				local newdamge = Attributes.Strength.Value*2
+				local totalDamage = (basedamage-enemydefense)+newdamge*2.5
+				local weakdmg = math.random(1,5.3)
+				local totalDamage = weakdmg/2
+				totalDamage = math.max(totalDamage,weakdmg)
+				insertPlayer(hit.Parent,Character,totalDamage)
+				enemyHumanoid:TakeDamage(totalDamage)
+				noRegen(hit,Character)
+				local Oldws = enemyHumanoid.WalkSpeed + 0 
+				GuardBreak.Parent = hit.Parent.Torso
+				game.Debris:AddItem(GuardBreak,1)
+				if enemyHumanoid.Parent:FindFirstChild("Stun") == nil and enemyHumanoid.WalkSpeed > 0 then
+					enemyHumanoid.WalkSpeed = 0 
+					local Stun = Instance.new("BoolValue", enemyHumanoid.Parent)
+					Stun.Name = "Stun"
+					game.Debris:AddItem(Stun, 1.5)
+					game.Debris:AddItem(GBSound,3.2)
+					spawn(function()
+						wait(2)
+						enemyHumanoid.WalkSpeed = Oldws
+					end)
+				end	
+			end
+		else
+			if Stage ~= "HeavyHit" then
+				spawn(function()
+					if Stage == "Finisher" then
+						EnemyAnimationFinisher(enemyHumanoid)			
+					else
+						EnemyAnimation(enemyHumanoid)
+					end
+				end)
+				local basedamage = Damage*highest
+				local enemydefense = enemyattributes.Defense.Value*2
+				local newdamge = Attributes.Strength.Value*2
+				local totalDamage = ((basedamage-enemydefense)+newdamge)
+				local weakdmg = math.random(1,5)
+				totalDamage = math.max(totalDamage,weakdmg)
+				insertPlayer(hit.Parent,Character,totalDamage)
+				enemyHumanoid:TakeDamage(totalDamage)
+				noRegen(hit,Character)
+				NormalHit.CombatGui.CombatText.Text = "- "..totalDamage
+				NormalHit.Parent = hit.Parent.Torso
+				game.Debris:AddItem(NormalHit,0.5)
+				game.Debris:AddItem(NBSound,1.71)
+				spawn(function()
+					if hit.Parent:FindFirstChild("Stun") == nil then
+						local Stun = Instance.new("BoolValue", hit.Parent)
+						Stun.Name = "Stun"
+						game.Debris:AddItem(Stun, .5)
+					end
+				end)
+			
+			else
+				spawn(function()
+					EnemyAnimation(enemyHumanoid)
+				end)
+				local basedamage = Damage*highest
+				local enemydefense = enemyattributes.Defense.Value*2
+				local newdamge = Attributes.Strength.Value*2
+				local weakdmg = math.random(1,5)
+				local totalDamage = ((basedamage-enemydefense)+newdamge)
+				totalDamage = math.max(totalDamage,weakdmg/2)
+				insertPlayer(hit.Parent,Character,totalDamage)
+				enemyHumanoid:TakeDamage(totalDamage)
+				noRegen(hit,Character)
+				NormalHit.CombatGui.CombatText.Text = "- "..totalDamage
+				NormalHit.Parent = hit.Parent.Torso
+				game.Debris:AddItem(NormalHit,0.5)
+				game.Debris:AddItem(NBSound,1.71)
+				spawn(function()
+					if hit.Parent == nil then return end
+					if hit.Parent:FindFirstChild("Stun") == nil then
+						local Stun = Instance.new("BoolValue", hit.Parent)
+						Stun.Name = "Stun"
+						game.Debris:AddItem(Stun, .5)
+					end
+				end)
+			end
+		end
+	else
+		if Stage ~= "HeavyHit" then
+			spawn(function()
+				if Stage == "Finisher" then
+					EnemyAnimationFinisher(enemyHumanoid)			
+				else
+					EnemyAnimation(enemyHumanoid)
+				end
+			end)
+			local basedamage = Damage*highest
+			local enemydefense = enemyattributes.Defense.Value*2
+			local newdamge = Attributes.Strength.Value*2
+			local weakdmg = math.random(1,5)
+			local totalDamage = (((Damage*highest)+(Attributes.Strength.Value*1.25))-enemyattributes.Defense.Value*2)
+			totalDamage = math.max(totalDamage,weakdmg)
+			insertPlayer(hit.Parent,Character,totalDamage)
+			enemyHumanoid:TakeDamage(totalDamage)
+			noRegen(hit,Character)
+			NormalHit.CombatGui.CombatText.Text = totalDamage
+			NormalHit.Parent = hit.Parent.Torso
+			game.Debris:AddItem(NormalHit,0.5)
+			game.Debris:AddItem(NBSound,1.71)
+			spawn(function()
+				if hit.Parent:FindFirstChild("Stun") == nil then
+					local Stun = Instance.new("BoolValue", hit.Parent)
+					Stun.Name = "Stun"
+					game.Debris:AddItem(Stun, .5)
+				end
+			end)		
+		else
+			spawn(function()
+				EnemyAnimation(enemyHumanoid)
+			end)
+			local basedamage = Damage*highest
+			local enemydefense = enemyattributes.Defense.Value*2
+			local newdamge = Attributes.Strength.Value*2
+			local weakdmg = math.random(1,5)
+			local totalDamage = ((basedamage-enemydefense)+newdamge*1.5)
+			totalDamage = math.max(totalDamage,weakdmg/2)
+			insertPlayer(hit.Parent,Character,totalDamage)
+			enemyHumanoid:TakeDamage(((basedamage-enemydefense)+newdamge))
+			noRegen(hit,Character)
+			NormalHit.CombatGui.CombatText.Text = "- "..totalDamage
+			NormalHit.Parent = hit.Parent.Torso
+			game.Debris:AddItem(NormalHit,0.5)
+			game.Debris:AddItem(NBSound,1.71)
+			spawn(function()
+				if hit.Parent:FindFirstChild("Stun") == nil then
+					local Stun = Instance.new("BoolValue", hit.Parent)
+					Stun.Name = "Stun"
+					game.Debris:AddItem(Stun, .5)
+				end
+			end)
+		end	
+	end
+end
+
+function Damaged(hit, enemyHumanoid, highest, Damage, Character, Stage, AlienDamageBoost, IgnoreBlocking) 
+	if hit.Parent == nil then return end
+	if enemyHumanoid.Health <= 0 then return end
+	if hit.Parent:FindFirstChild("Intangible") then return end
+	if Character.Humanoid.Health < 0 then return end
+	local Attributes = Character.Attributes
+	local enemyattributes = hit.Parent:FindFirstChild("Attributes")
+	local GuardBreak = BattleEffects.GuardBreak.Attachment:Clone()
+	local NormalHit = BattleEffects.HitEffect.Attachment:Clone()
+	local NormalBlock = BattleEffects.NormalBlock.Attachment:Clone()
+	local PerfectBlock = BattleEffects.PerfectBlock.Attachment:Clone()
+	local PBSound = PerfectBlock.Sound:Clone()
+	local NBSound = NormalBlock.Sound:Clone()
+	local GBSound = GuardBreak.Sound:Clone()
+	if hit.Parent:FindFirstChild("NPC") then
+		if hit.Parent:FindFirstChild("damageTable") and hit.Parent:FindFirstChild("Attack") then
+			local dataTable = require(hit.Parent.damageTable)
+			dataTable.changeTarget(Character)
+		end		
+	end
+	
+	
+	if IgnoreBlocking == nil then
+		if hit.Parent:FindFirstChild("Blocking") ~= nil then
+			if Stage ~= "HeavyHit" then
+				local Block = hit.Parent:FindFirstChild("Blocking")
+				if Block.Value ~= "Perfect" then
+					NBSound.Parent = Character
+					spawn(function()
+						NBSound:Play()
+						if Stage == "Finisher" then
+							EnemyAnimationFinisher(enemyHumanoid)
+						else
+							EnemyAnimation(enemyHumanoid)
+						end
+					end)
+					local basedamage = Damage*highest
+					local enemydefense = enemyattributes.Defense.Value*2
+					local newdamge = Attributes.Strength.Value*2
+					local weakdmg = math.random(1,5)
+					local totalDamage = ((basedamage-enemydefense)+newdamge)/2
+					totalDamage = math.max(totalDamage,weakdmg/2)
+					insertPlayer(hit.Parent,Character,totalDamage)
+					enemyHumanoid:TakeDamage(totalDamage)
+					noRegen(hit,Character)
+					NormalBlock.CombatGui.CombatText.Text = totalDamage
+					NormalBlock.Parent = hit.Parent.Torso
+					game.Debris:AddItem(NormalBlock,0.5)
+					game.Debris:AddItem(NBSound,1.71)
+					spawn(function()
+						if hit.Parent:FindFirstChild("Stun") == nil then
+							local Stun = Instance.new("BoolValue", hit.Parent)
+							Stun.Name = "Stun"
+							game.Debris:AddItem(Stun, .5)
+						end
+					end)
+				else
+					PBSound.Parent = Character
+					local hum = Character.Humanoid
+					spawn(function()
+						PBSound:Play()
+						local StunAnim = script.KnockBack
+						StunAnim.AnimationId = "rbxassetid://11540562516"
+						hum:LoadAnimation(StunAnim):Play()
+						wait(2.3)
+						hum:LoadAnimation(StunAnim):Stop()
+					end)
+					local Oldws = Character.Humanoid.WalkSpeed + 0 
+					PerfectBlock.Parent = hit.Parent.Torso
+					game.Debris:AddItem(PerfectBlock,1)
+					if Character.Humanoid.Parent:FindFirstChild("Stun") == nil and Character.Humanoid.WalkSpeed > 0 then
+						Character.Humanoid.WalkSpeed = 0 
+						local Stun = Instance.new("BoolValue", Character)
+						Stun.Name = "Stun"
+						game.Debris:AddItem(Stun, 3)
+						game.Debris:AddItem(PBSound,3.2)
+						spawn(function()
+							wait(2)
+							Character.Humanoid.WalkSpeed = Oldws
+						end)
+					end
+				end
+			else
+				GuardBreak.CombatGui.CombatText.Text = "GuardBreak!"
+				GBSound.Parent = Character
+				local BlockAnim = Instance.new("Animation")
+				BlockAnim.Parent = enemyHumanoid
+				BlockAnim.AnimationId = "rbxassetid://8375606231"
+				enemyHumanoid:LoadAnimation(BlockAnim):Stop()
+				spawn(function()
+					GBSound:Play()
+					RagdollIgnoreGuardBreak(hit.Parent)
+					local StunAnim = script.KnockBack
+					StunAnim.AnimationId = "rbxassetid://11540562516"
+					enemyHumanoid:LoadAnimation(StunAnim):Play()
+					wait(2.3)
+					enemyHumanoid:LoadAnimation(StunAnim):Stop()
+				end)
+				local basedamage = Damage*highest
+				local enemydefense = enemyattributes.Defense.Value*2
+				local newdamge = Attributes.Strength.Value*2
+				local weakdmg = math.random(1,5.3)
+				local totalDamage = (basedamage-enemydefense)+newdamge*2.5
+				totalDamage = math.max(totalDamage,weakdmg/2)
+				insertPlayer(hit.Parent,Character,totalDamage)
+				enemyHumanoid:TakeDamage(totalDamage)
+				noRegen(hit,Character)
+				local Oldws = enemyHumanoid.WalkSpeed + 0 
+				GuardBreak.Parent = hit.Parent.Torso
+				game.Debris:AddItem(GuardBreak,1)
+				if enemyHumanoid.Parent:FindFirstChild("Stun") == nil and enemyHumanoid.WalkSpeed > 0 then
+					enemyHumanoid.WalkSpeed = 0 
+					local Stun = Instance.new("BoolValue", enemyHumanoid.Parent)
+					Stun.Name = "Stun"
+					game.Debris:AddItem(Stun, 1.5)
+					game.Debris:AddItem(GBSound,3.2)
+					spawn(function()
+						wait(2)
+						enemyHumanoid.WalkSpeed = Oldws
+					end)
+				end
+				
+				
+			end
+		else
+			if Stage ~= "HeavyHit" then
+				spawn(function()
+					if Stage == "Finisher" then
+						EnemyAnimationFinisher(enemyHumanoid)			
+					else
+						EnemyAnimation(enemyHumanoid)
+					end
+				end)
+				local basedamage = Damage*highest
+				local enemydefense = enemyattributes.Defense.Value*2
+				local newdamge = Attributes.Strength.Value*2
+				local weakdmg = math.random(1,5)
+				local totalDamage = ((basedamage-enemydefense)+newdamge) 
+				totalDamage = math.max(totalDamage,weakdmg)
+				insertPlayer(hit.Parent,Character,totalDamage)
+				enemyHumanoid:TakeDamage(totalDamage)
+				noRegen(hit,Character)
+				NormalHit.CombatGui.CombatText.Text = totalDamage
+				NormalHit.Parent = hit.Parent.Torso
+				game.Debris:AddItem(NormalHit,0.5)
+				game.Debris:AddItem(NBSound,1.71)
+				spawn(function()
+					if hit.Parent:FindFirstChild("Stun") == nil then
+						local Stun = Instance.new("BoolValue", hit.Parent)
+						Stun.Name = "Stun"
+						game.Debris:AddItem(Stun, .5)
+					end
+				end)
+			else
+				spawn(function()
+					EnemyAnimation(enemyHumanoid)
+				end)
+				local basedamage = Damage*highest
+				local enemydefense = enemyattributes.Defense.Value*2
+				local newdamge = Attributes.Strength.Value*2
+				local weakdmg = math.random(1,5)
+				local totalDamage = ((basedamage-enemydefense)+newdamge)
+				totalDamage = math.max(totalDamage,weakdmg/2)
+				insertPlayer(hit.Parent,Character,totalDamage)
+				enemyHumanoid:TakeDamage(totalDamage)
+				noRegen(hit,Character)
+				NormalHit.CombatGui.CombatText.Text = totalDamage
+				NormalHit.Parent = hit.Parent.Torso
+				game.Debris:AddItem(NormalHit,0.5)
+				game.Debris:AddItem(NBSound,1.71)
+				spawn(function()
+					if hit.Parent == nil then return end
+					if hit.Parent:FindFirstChild("Stun") == nil then
+						local Stun = Instance.new("BoolValue", hit.Parent)
+						Stun.Name = "Stun"
+						game.Debris:AddItem(Stun, .5)
+					end
+				end)
+			end
+
+		end
+		
+	else
+		if Stage ~= "HeavyHit" then
+			spawn(function()
+				if Stage == "Finisher" then
+					EnemyAnimationFinisher(enemyHumanoid)			
+				else
+					EnemyAnimation(enemyHumanoid)
+				end
+			end)
+			local basedamage = Damage*highest
+			local enemydefense = enemyattributes.Defense.Value*2
+			local newdamge = Attributes.Strength.Value*2
+			local weakdmg = math.random(1,5)
+			local totalDamage = (((Damage*highest)+(Attributes.Strength.Value*1.25))-enemyattributes.Defense.Value*2)
+			totalDamage = math.max(totalDamage,weakdmg)
+			insertPlayer(hit.Parent,Character,totalDamage)
+			enemyHumanoid:TakeDamage(totalDamage)
+			noRegen(hit,Character)
+			NormalHit.CombatGui.CombatText.Text = totalDamage
+			NormalHit.Parent = hit.Parent.Torso
+			game.Debris:AddItem(NormalHit,0.5)
+			game.Debris:AddItem(NBSound,1.71)
+			spawn(function()
+				if hit.Parent:FindFirstChild("Stun") == nil then
+					local Stun = Instance.new("BoolValue", hit.Parent)
+					Stun.Name = "Stun"
+					game.Debris:AddItem(Stun, .5)
+				end
+			end)
+		else
+			spawn(function()
+				EnemyAnimation(enemyHumanoid)
+			end)
+			local basedamage = Damage*highest
+			local enemydefense = enemyattributes.Defense.Value*2
+			local newdamge = Attributes.Strength.Value*2
+			local weakdmg = math.random(1,5)
+			local totalDamage = ((basedamage-enemydefense)+newdamge*1.5)
+			totalDamage = math.max(totalDamage,weakdmg/2)
+			insertPlayer(hit.Parent,Character,totalDamage)
+			enemyHumanoid:TakeDamage(((basedamage-enemydefense)+newdamge))
+			noRegen(hit,Character)
+			NormalHit.CombatGui.CombatText.Text = totalDamage
+			NormalHit.Parent = hit.Parent.Torso
+			game.Debris:AddItem(NormalHit,0.5)
+			game.Debris:AddItem(NBSound,1.71)
+			spawn(function()
+				if hit.Parent:FindFirstChild("Stun") == nil then
+					local Stun = Instance.new("BoolValue", hit.Parent)
+					Stun.Name = "Stun"
+					game.Debris:AddItem(Stun, .5)
+				end
+			end)
+		end	
+	end
+end
+
+
+function KnockBack(hit,KnockBackAmount,character,humanoidRootPart)
+	if humanoidRootPart == nil then return end
+	if humanoidRootPart and character then
+		local playerCFrame = character:FindFirstChild("HumanoidRootPart").CFrame
+		local knockbackDirection = playerCFrame.LookVector * KnockBackAmount
+
+		local bp = Instance.new("BodyPosition", humanoidRootPart)
+		bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+		bp.Position = humanoidRootPart.Position + knockbackDirection
+		game.Debris:AddItem(bp, 1)
+	end
+end
+
+function AirCombo(hit,Character,Track1,Anim)
+	if hit.Parent:FindFirstChild("Blocking") then return end
+	local Sound = Instance.new("Sound", hit)
+	Sound.SoundId = "rbxassetid://441202925"
+	Sound.Volume = 1
+	Sound.PlaybackSpeed = 1
+	Sound.RollOffMinDistance = 5
+	Sound.RollOffMaxDistance = 30
+	local goal = {}
+	goal.Size = Vector3.new(16.211, 0.001, 13.833)
+	goal.Transparency = 1
+	local TweenIn = TweenInfo.new(
+		0.5,
+		Enum.EasingStyle.Cubic,
+		Enum.EasingDirection.InOut,
+		0,
+		false,
+		0
+	)	
+	local Shockwave = game.ReplicatedStorage.Shockwave:Clone()
+	local airswve = TweenService:Create(Shockwave,TweenIn, goal)
+	Shockwave.CFrame = hit.Parent.HumanoidRootPart.CFrame
+	Shockwave.Parent = hit.Parent
+	local bp = Instance.new("BodyPosition", hit.Parent.HumanoidRootPart)
+	bp.MaxForce = Vector3.new(math.huge,math.huge,math.huge)
+	bp.Position = (hit.Parent.HumanoidRootPart.CFrame * CFrame.new(0,15,10)).Position
+	local bp2 = Instance.new("BodyPosition", Character.HumanoidRootPart)
+	bp2.MaxForce = Vector3.new(math.huge,math.huge,math.huge)
+	bp2.Position = (Character.HumanoidRootPart.CFrame * CFrame.new(0,15,-8)).Position
+	bp:Clone().Parent = Shockwave
+	Track1.AnimationId = "rbxassetid://7801185440"
+	Sound:Play()
+	Anim:Play()
+	airswve:Play()
+	game.Debris:AddItem(bp,2)
+	game.Debris:AddItem(bp2,2)
+	game.Debris:AddItem(Shockwave,1)
+end
+
+function EnemyAnimation(enemyHumanoid)
+	local Anim = script.KnockBack
+	Anim.AnimationId = "rbxassetid://11540562516"
+	enemyHumanoid:LoadAnimation(Anim):Play()
+end
+
+function EnemyAnimationFinisher(enemyHumanoid)
+	local Anim = script.KnockBack
+	Anim.AnimationId = "rbxassetid://11540658575"
+	enemyHumanoid:LoadAnimation(Anim):Play()
+end
+
+
+function hitboxTouchedMelee(Character,hit,Damage,DamageType,Ragdoll,enemyHumanoid,KnockbackOn,KBAmount)
+	spawn(function()
+		if KnockbackOn == true then
+			KnockBack(hit,KBAmount,Character,Character.HumanoidRootPart)
+		end
+		if Ragdoll == true then
+			StartRagdoll(hit.Parent)
+			--hit.Parent.HumanoidRootPart.Orientation = Character.HumanoidRootPart.Orientation*180
+		end
+	end)
+	Damaged(hit, enemyHumanoid, 1, Damage,Character, DamageType)
+	spawn(function()
+		if DamageType == "Finisher" then
+			Character.combatCoolDown.Value = true
+			wait(3)
+			Character.combatCoolDown.Value = false
+		end
+	end)
+	spawn(function()
+		if hit.Parent == nil then return end
+		if game.Players:FindFirstChild(hit.Parent.Name) then
+			local Plr = game.Players:FindFirstChild(hit.Parent.Name)
+			game.ReplicatedStorage.ShakezEvent:FireClient(Plr)
+		end
+	end)
+
+end
+
+function noRegen(hit,NPC)
+	if hit.Parent:FindFirstChild("NoRegen") then return end
+	local noRegeneration = Instance.new("BoolValue",hit.Parent)
+	noRegeneration.Name = "NoRegen"
+	repeat
+		wait(.0000001)
+	until hit.Parent.NoRegen ~= nil
+	spawn(function()
+		if game.Players:FindFirstChild(NPC.Name) and NPC:FindFirstChild("NPC") == nil  and hit.Parent:FindFirstChild("NPC") == nil and game.Players:FindFirstChild(hit.Parent.Name) then
+			game.ReplicatedStorage.ClientRemote.inCombatEvent:FireClient(game.Players:FindFirstChild(hit.Parent.Name))
+			game.ReplicatedStorage.ClientRemote.inCombatEvent:FireClient(game.Players:FindFirstChild(NPC.Name),hit.Parent.Name)
+		end
+	end)
+	
+	game.Debris:AddItem(noRegeneration,30)
+end
+
+function Burn(humanoid,totalTime,target)
+	local Particles = game.ReplicatedStorage.EmitterCombat.Fire.RealisticFire:Clone()
+	Particles.Name = "Fire"
+	spawn(function()
+		if target:FindFirstChild("Fire") == nil then
+			Particles.Parent = target.HumanoidRootPart
+		end
+	end)
+	for i=1,totalTime do
+		humanoid:TakeDamage(i)
+		wait(1)
+	end
+	Particles:Destroy()
+end
+
+
+
+-----------------------------------------------------------------------------------------------------
+
+function CombatDictionary.HeavyHit(Player,Character)
+	if Character:FindFirstChild("Stun") then return end
+	local Damage = Character.Attributes.Strength.Value+12
+	local hitbox = Instance.new("Part") 
+	local Weld = Instance.new("Weld", hitbox)
+	local Sound = Instance.new("Sound", Character)
+	Sound.RollOffMinDistance = 5
+	Sound.RollOffMaxDistance = 30
+	Sound.SoundId = "rbxassetid://441202925"
+	Sound.Volume = 2
+	Sound.PlaybackSpeed = 0.9
+	hitbox.Massless = true
+	hitbox.CanCollide = false
+	hitbox.Transparency = 1
+	hitbox.Size = Character["Left Arm"].Size*2.5
+	hitbox.Parent = Character
+	hitbox.CFrame = Character["Left Arm"].CFrame
+	Weld.Part0 = hitbox
+	Weld.Part1 = Character["Left Arm"]
+	local Track1 = script.hit1
+	Track1.AnimationId = "rbxassetid://7801185440"
+	local Anim = Character.Humanoid:LoadAnimation(Track1)
+	Anim:Play()
+	Anim:AdjustSpeed(0.5)
+	game.Debris:AddItem(hitbox, 1.9)
+	local alreadytouched = false
+	hitbox.Touched:Connect(function(hit)
+		if hit.Parent:FindFirstChild("LowLvl") then lowLevel(hit.Parent) return end
+		if hit.Parent == workspace.MapGUI then return end
+		if Character:FindFirstChild("LowLvl") and game.Players:FindFirstChild(hit.Parent.Name) then return end
+		local enemyHumanoid = hit.Parent:FindFirstChild("Humanoid")
+		local canDamage = hit.Parent:FindFirstChild("CanDamage")--an event if the fireball has been touched
+		if alreadytouched == false and hit.Parent:FindFirstChild("Humanoid") and canDamage and canDamage.Value == false and hit.Parent.Name ~= Player.Name and enemyHumanoid.Health > 0 then --if the hit of the fireball has a humaniod
+			alreadytouched = true 
+			Sound:Play()
+			hitboxTouchedMelee(Character,hit,Damage,"HeavyHit",false,enemyHumanoid,true,5)
+		end
+	end)
+	game.Debris:AddItem(Sound,2)
+
+end
+
+
+----------------------[Combat Types and other stuff]--------------------------------
+-- Normal Combo 2 hit 1 finisher
+-- Ninja 3 hits 2 finishers
+-- Flame Combo 2 hit 1 finisher
+-- Shard Combo 2 hit 1 finisher
+-- hitbox
+
+function findNearestTorso(pos, hitbox, Character)
+	local list = game.Workspace:GetChildren()
+	local torso = nil
+	local dist = 20
+	local temp = nil
+	local human = nil
+	local temp2 = nil
+	for x = 1, #list do
+		temp2 = list[x]
+		if (temp2.className == "Model") and (temp2.Name ~= Character.Name) then
+			temp = temp2:FindFirstChild("Torso")
+			human = temp2:findFirstChild("Humanoid")
+			if (temp ~= nil) and (human ~= nil) and (human.Health > 0) then
+				if (temp.Position - hitbox.Position).Magnitude < dist then
+					torso = temp
+					dist = (temp.Position - hitbox.Position).Magnitude
+				end
+			end
+		end
+	end
+	return torso
+end
+------------------[No Combo]-----------------------------------
+function CombatDictionary.NoComboCombatCombo1(Player,Character,NPC)
+	if Character:FindFirstChild("Stun") then return end
+	local Damage = CombatDictionary.Normal.Damage
+	local hitbox = Instance.new("Part") 
+	local Weld = Instance.new("Weld", hitbox)
+	local Sound = Instance.new("Sound", Character)
+	Sound.RollOffMinDistance = 5
+	Sound.RollOffMaxDistance = 30
+	Sound.SoundId = "rbxassetid://9066673412"
+	Sound.Volume = 1
+	hitbox.Name = "hitbox"
+	hitbox.Massless = true
+	hitbox.CanCollide = false
+	hitbox.Transparency = 1
+	hitbox.Size = Character["Left Arm"].Size*2.5
+	hitbox.Parent = Character
+	hitbox.CFrame = Character["Left Arm"].CFrame
+	Weld.Part0 = hitbox
+	Weld.Part1 = Character["Left Arm"]
+	Character.ComboStage.Value +=  1
+	local Track1 = script.hit1
+	Track1.AnimationId = "rbxassetid://7801185440"
+	local Anim = Character.Humanoid:LoadAnimation(Track1)
+	Anim:Play()
+	game.Debris:AddItem(Sound,2)
+	game.Debris:AddItem(hitbox,1)
+	local alreadytouched = false
+
+	local touch = hitbox.Touched:Connect(function(hit)
+		if hit.Name == "hitbox" then return end
+		if hit.Parent == workspace.MapGUI then return end
+		if hit.Parent:FindFirstChild("Humanoid") == nil then return end
+		if NPC == nil and hit.Parent:FindFirstChild("LowLvl") then return end
+		if NPC == nil and Character:FindFirstChild("LowLvl") and game.Players:FindFirstChild(hit.Parent.Name) then return end
+		local enemyHumanoid = hit.Parent:FindFirstChild("Humanoid")
+		local canDamage = hit.Parent:FindFirstChild("CanDamage")--an event if the fireball has been touched
+		if alreadytouched == false and hit.Parent:FindFirstChild("Humanoid") and canDamage and canDamage.Value == false and hit.Parent.Name ~= Player.Name and enemyHumanoid.Health > 0 then --if the hit of the fireball has a humaniod
+			alreadytouched = true 
+			Sound:Play()
+			hitboxTouchedMelee(Character,hit,Damage,"Normal",false,enemyHumanoid,false)
+		end
+	end)
+	spawn(function()
+		--wait(2.4)
+		if alreadytouched == true then
+			touch:Disconnect()
+		end
+	end)
+
+end
+
+
+
+function CombatDictionary.NoComboCombatCombo2(Player,Character, NPC)
+	if Character:FindFirstChild("Stun") then return end
+	local delaytime = 1
+	local Damage = CombatDictionary.Normal.Damage
+	local hitbox = Instance.new("Part") 
+	local Weld = Instance.new("Weld", hitbox)
+	local Sound = Instance.new("Sound", Character)
+	Sound.RollOffMinDistance = 5
+	Sound.RollOffMaxDistance = 30
+	Sound.SoundId = "rbxassetid://9066673412"
+	Sound.Volume = 1
+	hitbox.Massless = true
+	hitbox.Name = "hitbox"
+	hitbox.CanCollide = false
+	hitbox.Transparency = 1
+	hitbox.Size = Character["Right Arm"].Size*2.5
+	hitbox.Parent = Character
+	hitbox.CFrame = Character["Right Arm"].CFrame
+	Weld.Part0 = hitbox
+	Weld.Part1 = Character["Right Arm"]
+	local Track2 = script.hit2
+	Track2.AnimationId = "rbxassetid://7801181362"
+	local Anim2 = Character.Humanoid:LoadAnimation(Track2)
+	Anim2:Play()
+	Character.ComboStage.Value = 1
+	game.Debris:AddItem(hitbox,1)
+	game.Debris:AddItem(Sound,2)
+	local alreadytouched = false
+	local touch = hitbox.Touched:Connect(function(hit)
+		if alreadytouched == true then return end		
+		if hit.Parent == workspace.MapGUI then return end
+		if NPC == nil and hit.Parent:FindFirstChild("LowLvl") then return end
+		if NPC == nil and Character:FindFirstChild("LowLvl") and game.Players:FindFirstChild(hit.Parent.Name) then return end
+		local enemyHumanoid = hit.Parent:FindFirstChild("Humanoid")
+		local canDamage = hit.Parent:FindFirstChild("CanDamage")--an event if the fireball has been touched
+		if alreadytouched == false and hit.Parent:FindFirstChild("Humanoid") and canDamage and canDamage.Value == false and hit.Parent.Name ~= Player.Name and enemyHumanoid.Health > 0 then --if the hit of the fireball has a humaniod
+			alreadytouched = true 
+			Sound:Play()
+			hitboxTouchedMelee(Character,hit,Damage,"Finisher",false,enemyHumanoid,true,5)
+		end
+	end)
+	spawn(function()
+		--wait(2.4)
+
+		if alreadytouched == true then
+			touch:Disconnect()
+		end
+	end)
+end
+
+----------------[Normal Combo]----------------------------
+function CombatDictionary.NormalCombo1(Player,Character,NPC)
+	if Character:FindFirstChild("Stun") then return end
+	local Damage = CombatDictionary.Normal.Damage
+	local hitbox = Instance.new("Part") 
+	local Weld = Instance.new("Weld", hitbox)
+	local Sound = Instance.new("Sound", Character)
+	Sound.RollOffMinDistance = 5
+	Sound.RollOffMaxDistance = 30
+	Sound.SoundId = "rbxassetid://9066673412"
+	Sound.Volume = 1
+	hitbox.Name = "hitbox"
+	hitbox.Massless = true
+	hitbox.CanCollide = false
+	hitbox.Transparency = 1
+	hitbox.Size = Character["Left Arm"].Size*2.5
+	hitbox.Parent = Character
+	hitbox.CFrame = Character["Left Arm"].CFrame
+	Weld.Part0 = hitbox
+	Weld.Part1 = Character["Left Arm"]
+	Character.ComboStage.Value +=  1
+	local Track1 = script.hit1
+	Track1.AnimationId = "rbxassetid://7801185440"
+	local Anim = Character.Humanoid:LoadAnimation(Track1)
+	Anim:Play()
+	game.Debris:AddItem(Sound,2)
+	game.Debris:AddItem(hitbox,1)
+	local alreadytouched = false
+	
+	local touch = hitbox.Touched:Connect(function(hit)
+		if hit.Name == "hitbox" then return end
+		if hit.Parent == workspace.MapGUI then return end
+		if hit.Parent:FindFirstChild("Humanoid") == nil then return end
+		if NPC == nil and hit.Parent:FindFirstChild("LowLvl") then return end
+		if NPC == nil and Character:FindFirstChild("LowLvl") and game.Players:FindFirstChild(hit.Parent.Name) then return end
+		local enemyHumanoid = hit.Parent:FindFirstChild("Humanoid")
+		local canDamage = hit.Parent:FindFirstChild("CanDamage")--an event if the fireball has been touched
+		if alreadytouched == false and hit.Parent:FindFirstChild("Humanoid") and canDamage and canDamage.Value == false and hit.Parent.Name ~= Player.Name and enemyHumanoid.Health > 0 then --if the hit of the fireball has a humaniod
+			alreadytouched = true 
+			Sound:Play()
+			hitboxTouchedMelee(Character,hit,Damage,"Normal",false,enemyHumanoid,false)
+		end
+	end)
+	spawn(function()
+		--wait(2.4)
+		if alreadytouched == true then
+			touch:Disconnect()
+		end
+	end)
+	
+end
+
+function CombatDictionary.NormalCombo2(Player,Character, NPC)
+	if Character:FindFirstChild("Stun") then return end
+	local delaytime = 1
+	local Damage = CombatDictionary.Normal.Damage
+	local hitbox = Instance.new("Part") 
+	local Weld = Instance.new("Weld", hitbox)
+	local Sound = Instance.new("Sound", Character)
+	Sound.RollOffMinDistance = 5
+	Sound.RollOffMaxDistance = 30
+	Sound.SoundId = "rbxassetid://9066673412"
+	Sound.Volume = 1
+	hitbox.Massless = true
+	hitbox.Name = "hitbox"
+	hitbox.CanCollide = false
+	hitbox.Transparency = 1
+	hitbox.Size = Character["Right Arm"].Size*2.5
+	hitbox.Parent = Character
+	hitbox.CFrame = Character["Right Arm"].CFrame
+	Weld.Part0 = hitbox
+	Weld.Part1 = Character["Right Arm"]
+	local Track2 = script.hit2
+	Track2.AnimationId = "rbxassetid://7801181362"
+	local Anim2 = Character.Humanoid:LoadAnimation(Track2)
+	Anim2:Play()
+	Character.ComboStage.Value = Character.ComboStage.Value + 1
+	game.Debris:AddItem(hitbox,1)
+	game.Debris:AddItem(Sound,2)
+	local alreadytouched = false
+	local touch = hitbox.Touched:Connect(function(hit)
+		if alreadytouched == true then return end	
+		if hit.Parent == workspace.MapGUI then return end
+		if NPC == nil and hit.Parent:FindFirstChild("LowLvl") then return end
+		if NPC == nil and Character:FindFirstChild("LowLvl") and game.Players:FindFirstChild(hit.Parent.Name) then return end
+		local enemyHumanoid = hit.Parent:FindFirstChild("Humanoid")
+		local canDamage = hit.Parent:FindFirstChild("CanDamage")--an event if the fireball has been touched
+		if alreadytouched == false and hit.Parent:FindFirstChild("Humanoid") and canDamage and canDamage.Value == false and hit.Parent.Name ~= Player.Name and enemyHumanoid.Health > 0 then --if the hit of the fireball has a humaniod
+			alreadytouched = true 
+			Sound:Play()
+			hitboxTouchedMelee(Character,hit,Damage,"Normal",false,enemyHumanoid,true,5)
+		end
+	end)
+	spawn(function()
+		--wait(2.4)
+
+		if alreadytouched == true then
+			touch:Disconnect()
+		end
+	end)
+end
+
+function CombatDictionary.NormalCombo3(Player,Character,NPC)
+	if Character:FindFirstChild("Stun") then return end
+	local delaytime = 1
+	local Damage = CombatDictionary.Normal.Damage
+	local hitbox = Instance.new("Part") 
+	local Weld = Instance.new("Weld", hitbox)
+	local Sound = Instance.new("Sound", Character)
+	Sound.RollOffMinDistance = 5
+	Sound.RollOffMaxDistance = 30
+	Sound.SoundId = "rbxassetid://441202925"
+	Sound.Volume = 1
+	hitbox.Name = "hitbox"
+	hitbox.Massless = true
+	hitbox.CanCollide = false
+	hitbox.Transparency = 1
+	hitbox.Size = Character["Torso"].Size*2.5
+	hitbox.Parent = Character
+	hitbox.CFrame = Character["Torso"].CFrame
+	Weld.Part0 = hitbox
+	Weld.Part1 = Character["Left Arm"]
+	Character.ComboStage.Value = 1
+	local Track1 = script.hit1
+	Track1.AnimationId = "rbxassetid://7801179121"
+	local Anim = Character.Humanoid:LoadAnimation(Track1)
+	Anim:Play()
+	game.Debris:AddItem(hitbox,1.25)
+	game.Debris:AddItem(Sound,2)
+	local alreadytouched = false
+	
+
+	
+	local touch = hitbox.Touched:Connect(function(hit)
+		if hit.Name == "hitbox" then return end
+		if hit.Parent == workspace.MapGUI then return end
+		if hit.Parent == nil then return end
+		if NPC == nil and hit.Parent:FindFirstChild("LowLvl") then return end
+		if NPC == nil and Character and Character:FindFirstChild("LowLvl") and game.Players:FindFirstChild(hit.Parent.Name) then return end
+		local enemyHumanoid = hit.Parent:FindFirstChild("Humanoid")
+		local canDamage = hit.Parent:FindFirstChild("CanDamage")--an event if the fireball has been touched
+		if alreadytouched == false and hit.Parent:FindFirstChild("Humanoid") and canDamage and canDamage.Value == false and hit.Parent.Name ~= Player.Name and enemyHumanoid.Health > 0 then --if the hit of the fireball has a humaniod
+			alreadytouched = true 
+			Sound:Play()
+			hitboxTouchedMelee(Character,hit,Damage,"Finisher",true,enemyHumanoid,true,5)
+		end
+	end)
+	spawn(function()
+		--wait(2.4)
+
+		if alreadytouched == true then
+			touch:Disconnect()
+		end
+	end)
+end
+end
+-----------------------------------------------------------------------------------------------------------------------------------------
+return CombatDictionary
